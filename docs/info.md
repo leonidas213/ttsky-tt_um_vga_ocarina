@@ -9,12 +9,13 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-Explain how your project works
+You press a button and it will generate a pwm sound
 
 ## How to test
 
-Explain how to use your project
+With gamepad press buttons(A X y L R) like in The legends of zelda Ocarina of time and you will make music.
+with direction buttons you can change octave and pitch
 
 ## External hardware
 
-List external hardware used in your project (e.g. PMOD, LED display, etc), if any
+Pwm audio, gamepad and VGA Pmod
