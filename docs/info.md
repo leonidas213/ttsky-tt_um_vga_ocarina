@@ -81,3 +81,5 @@ The song helper shows the selected 6-note pattern on the staff. It does not chec
 
 
 Or you can play your own songs.
+
+![image](musicsheet.png)
