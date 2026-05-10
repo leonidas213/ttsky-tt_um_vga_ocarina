@@ -50,21 +50,17 @@ the game. sAlso Hopefully I assigned correct frequencies.
 | `A` | none | D5 |
 | `A` | Down | C#5 |
 | `A` | Up | D#5 |
-| `A` | Right | E5 |
 | `Y` | none | A4 |
 | `Y` | Down | G#4 |
 | `Y` | Up | A#4 |
 | `X` | none | B4 |
 | `X` | Up | C5 |
 | `L` | none | D4 |
-| `L` | Left + Down | B3 |
-| `L` | Left | C4 |
 | `L` | Down | C#4 |
 | `L` | Up | D#4 |
 | `R` | none | F4 |
 | `R` | Down | E4 |
 | `R` | Up | F#4 |
-| `R` | Right | G4 |
 
 ## Song Helper
 

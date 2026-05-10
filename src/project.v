@@ -39,8 +39,8 @@ module tt_um_vga_ocarina (
   // ------------------------------------------------------------
   // Gamepad
   // ------------------------------------------------------------
-  wire inp_b, inp_y, inp_select, inp_start;
-  wire inp_up, inp_down, inp_left, inp_right;
+  wire inp_y, inp_select, inp_start;
+  wire inp_up, inp_down;
   wire inp_a, inp_x, inp_l, inp_r;
   wire pad_present;
 
@@ -50,14 +50,14 @@ module tt_um_vga_ocarina (
       .pmod_data(ui_in[6]),
       .pmod_clk(ui_in[5]),
       .pmod_latch(ui_in[4]),
-      .b(inp_b),
+      .b(),
       .y(inp_y),
       .select(inp_select),
       .start(inp_start),
       .up(inp_up),
       .down(inp_down),
-      .left(inp_left),
-      .right(inp_right),
+      .left(),
+      .right(),
       .a(inp_a),
       .x(inp_x),
       .l(inp_l),
@@ -65,10 +65,8 @@ module tt_um_vga_ocarina (
       .is_present(pad_present)
   );
 
-  // ------------------------------------------------------------
   // Small helper: row hit for one button id.
   // Button ids: 1=A, 2=X, 3=Y, 4=L, 5=R
-  // ------------------------------------------------------------
   function row_for_btn;
     input [2:0] id;
     input       row_a;
@@ -88,9 +86,7 @@ module tt_um_vga_ocarina (
     end
   endfunction
 
-  // ------------------------------------------------------------
   // Audio note generation
-  // ------------------------------------------------------------
   reg  [15:0] note_div;
   reg  [2:0]  note_vis;
   reg  [15:0] tone_counter;
@@ -113,8 +109,6 @@ module tt_um_vga_ocarina (
           note_div = 16'd22550; // C#5
         else if (inp_up)
           note_div = 16'd20092; // D#5
-        else if (inp_right)
-          note_div = 16'd18960; // E5
         else
           note_div = 16'd21282; // D5
 
@@ -136,11 +130,7 @@ module tt_um_vga_ocarina (
 
       end else if (inp_l) begin
         note_vis = 3'd4;
-        if (inp_left && inp_down)
-          note_div = 16'd50619; // B3
-        else if (inp_left)
-          note_div = 16'd47776; // C4
-        else if (inp_down)
+        if (inp_down)
           note_div = 16'd45098; // C#4
         else if (inp_up)
           note_div = 16'd40184; // D#4
@@ -153,8 +143,6 @@ module tt_um_vga_ocarina (
           note_div = 16'd37920; // E4
         else if (inp_up)
           note_div = 16'd33784; // F#4
-        else if (inp_right)
-          note_div = 16'd31887; // G4
         else
           note_div = 16'd35791; // F4
       end
@@ -180,10 +168,8 @@ module tt_um_vga_ocarina (
     end
   end
 
-  // ------------------------------------------------------------
   // 3-song guide + 6-note history
   // START cycles. SELECT clears history.
-  // ------------------------------------------------------------
   reg        note_enable_d;
   reg [2:0]  note_vis_d;
   reg        inp_start_d;
@@ -195,7 +181,7 @@ module tt_um_vga_ocarina (
   reg [2:0] hist3;
   reg [2:0] hist4;
   reg [2:0] hist5;
-  reg [2:0] hist_count; // 0..6
+  reg [2:0] hist_count; 
 
   reg [1:0] song_id; // 0=Zelda, 1=Time, 2=Epona, 3=empty
 
@@ -268,7 +254,7 @@ module tt_um_vga_ocarina (
     end
   end
 
-  // Slot 0: Zelda's Lullaby  = X A Y X A Y
+  // Slot 0: Zelda's Lullaby = X A Y X A Y
   // Slot 1: Song of Time     = Y L R Y L R
   // Slot 2: Epona's Song     = A X Y A X Y
   // Slot 3: Empty             = no guide notes
@@ -300,7 +286,7 @@ module tt_um_vga_ocarina (
     endcase
   end
 
-// Drawing Everything ugh...
+// Drawing
   wire body_outline = ((pix_x >= 10'd238) && (pix_x <= 10'd420) &&
                        (pix_y >= 10'd184) && (pix_y <= 10'd196)) ||
                       ((pix_x >= 10'd218) && (pix_x <= 10'd452) &&
@@ -371,18 +357,13 @@ module tt_um_vga_ocarina (
 
   wire hole_ring_on = hole_l_ring | hole_r_ring | hole_y_ring | hole_x_ring | hole_a_ring;
 
-  // D-pad visual modifier boxes. Rectangle-only and cheap.
+
   wire mod_up = (pix_x >= 10'd525) && (pix_x <= 10'd534) &&
                 (pix_y >= 10'd165) && (pix_y <= 10'd174);
 
   wire mod_down = (pix_x >= 10'd525) && (pix_x <= 10'd534) &&
                   (pix_y >= 10'd255) && (pix_y <= 10'd264);
 
-  wire mod_left = (pix_x >= 10'd505) && (pix_x <= 10'd514) &&
-                  (pix_y >= 10'd210) && (pix_y <= 10'd219);
-
-  wire mod_right = (pix_x >= 10'd545) && (pix_x <= 10'd554) &&
-                   (pix_y >= 10'd210) && (pix_y <= 10'd219);
 
   // Staff area and rows.
   wire staff_x = (pix_x >= 10'd70) && (pix_x <= 10'd570);
@@ -395,6 +376,7 @@ module tt_um_vga_ocarina (
 
 
   // Music key-ish symbol on the left of the staff.
+
   wire staff_key_on =
       // main vertical stem
       ((pix_x >= 10'd94) && (pix_x <= 10'd99) &&
@@ -436,7 +418,7 @@ module tt_um_vga_ocarina (
   wire row_r_mid = (pix_y >= 10'd368) && (pix_y <= 10'd374);
   wire row_l_mid = (pix_y >= 10'd388) && (pix_y <= 10'd394);
 
-  // 6 visible note columns.
+
   wire slot0_x = (pix_x >= 10'd169) && (pix_x <= 10'd181);
   wire slot1_x = (pix_x >= 10'd219) && (pix_x <= 10'd231);
   wire slot2_x = (pix_x >= 10'd269) && (pix_x <= 10'd281);
@@ -560,8 +542,6 @@ module tt_um_vga_ocarina (
 
       if (mod_up)    rgb = inp_up    ? C_GREEN : C_GRAY;
       if (mod_down)  rgb = inp_down  ? C_GREEN : C_GRAY;
-      if (mod_left)  rgb = inp_left  ? C_GREEN : C_GRAY;
-      if (mod_right) rgb = inp_right ? C_GREEN : C_GRAY;
     end
   end
 
@@ -572,7 +552,6 @@ module tt_um_vga_ocarina (
     uio_in,
     ui_in[7],
     ui_in[3:0],
-    inp_b,
     inp_select,
     inp_start
   };
