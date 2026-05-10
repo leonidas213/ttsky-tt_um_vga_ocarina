@@ -20,11 +20,15 @@ module tt_um_vga_ocarina (
   wire [9:0] pix_x;
   wire [9:0] pix_y;
 
+  reg hsync_r;
+  reg vsync_r;
+
   wire [1:0] R;
   wire [1:0] G;
   wire [1:0] B;
 
-  assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
+  // RGB and sync are registered by 1 pixel to reduce output timing pressure.
+  assign uo_out = {hsync_r, B[0], G[0], R[0], vsync_r, B[1], G[1], R[1]};
 
   hvsync_generator vga_sync_gen (
       .clk(clk),
@@ -65,7 +69,6 @@ module tt_um_vga_ocarina (
       .is_present(pad_present)
   );
 
-  // Small helper: row hit for one button id.
   // Button ids: 1=A, 2=X, 3=Y, 4=L, 5=R
   function row_for_btn;
     input [2:0] id;
@@ -86,7 +89,9 @@ module tt_um_vga_ocarina (
     end
   endfunction
 
+  // ------------------------------------------------------------
   // Audio note generation
+  // ------------------------------------------------------------
   reg  [15:0] note_div;
   reg  [2:0]  note_vis;
   reg  [15:0] tone_counter;
@@ -149,17 +154,19 @@ module tt_um_vga_ocarina (
     end
   end
 
+  // Down-counter version:
+  // cheaper than tone_counter >= note_div because it avoids a variable 16-bit magnitude compare.
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       tone_counter <= 16'd0;
       tone_ff      <= 1'b0;
     end else begin
       if (note_enable) begin
-        if (tone_counter >= note_div) begin
-          tone_counter <= 16'd0;
+        if (tone_counter == 16'd0) begin
+          tone_counter <= note_div;
           tone_ff      <= ~tone_ff;
         end else begin
-          tone_counter <= tone_counter + 16'd1;
+          tone_counter <= tone_counter - 16'd1;
         end
       end else begin
         tone_counter <= 16'd0;
@@ -168,8 +175,7 @@ module tt_um_vga_ocarina (
     end
   end
 
-  // 3-song guide + 6-note history
-  // START cycles. SELECT clears history.
+  // START cycles songs. SELECT clears history.
   reg        note_enable_d;
   reg [2:0]  note_vis_d;
   reg        inp_start_d;
@@ -181,7 +187,7 @@ module tt_um_vga_ocarina (
   reg [2:0] hist3;
   reg [2:0] hist4;
   reg [2:0] hist5;
-  reg [2:0] hist_count; 
+  reg [2:0] hist_count;
 
   reg [1:0] song_id; // 0=Zelda, 1=Time, 2=Epona, 3=empty
 
@@ -286,7 +292,7 @@ module tt_um_vga_ocarina (
     endcase
   end
 
-// Drawing
+  // Drawing
   wire body_outline = ((pix_x >= 10'd238) && (pix_x <= 10'd420) &&
                        (pix_y >= 10'd184) && (pix_y <= 10'd196)) ||
                       ((pix_x >= 10'd218) && (pix_x <= 10'd452) &&
@@ -296,7 +302,7 @@ module tt_um_vga_ocarina (
                       ((pix_x >= 10'd218) && (pix_x <= 10'd452) &&
                        (pix_y >= 10'd247) && (pix_y <= 10'd263)) ||
                       ((pix_x >= 10'd238) && (pix_x <= 10'd420) &&
-                       (pix_y >= 10'd264) && (pix_y <= 10'd276))||
+                       (pix_y >= 10'd264) && (pix_y <= 10'd276)) ||
                       ((pix_x >= 10'd278) && (pix_x <= 10'd340) &&
                        (pix_y >= 10'd124) && (pix_y <= 10'd188));
 
@@ -309,29 +315,26 @@ module tt_um_vga_ocarina (
                  ((pix_x >= 10'd225) && (pix_x <= 10'd445) &&
                   (pix_y >= 10'd241) && (pix_y <= 10'd257)) ||
                  ((pix_x >= 10'd244) && (pix_x <= 10'd414) &&
-                  (pix_y >= 10'd258) && (pix_y <= 10'd270))||
-                  ((pix_x >= 10'd284) && (pix_x <= 10'd334 ) &&
+                  (pix_y >= 10'd258) && (pix_y <= 10'd270)) ||
+                 ((pix_x >= 10'd284) && (pix_x <= 10'd334) &&
                   (pix_y >= 10'd130) && (pix_y <= 10'd189));
 
   wire body_highlight = (((pix_x >= 10'd250) && (pix_x <= 10'd390) &&
-                         (pix_y >= 10'd195) && (pix_y <= 10'd198)) ||
-
-                        ((pix_x >= 10'd230) && (pix_x <= 10'd285) &&
-                         (pix_y >= 10'd230) && (pix_y <= 10'd232))) ||
-
-                        ((pix_x >= 10'd325) && (pix_x <= 10'd330 ) &&
+                          (pix_y >= 10'd195) && (pix_y <= 10'd198)) ||
+                         ((pix_x >= 10'd230) && (pix_x <= 10'd285) &&
+                          (pix_y >= 10'd230) && (pix_y <= 10'd232))) ||
+                        ((pix_x >= 10'd325) && (pix_x <= 10'd330) &&
                          (pix_y >= 10'd130) && (pix_y <= 10'd179));
 
   wire body_shadow = ((pix_x >= 10'd244) && (pix_x <= 10'd414) &&
-                     (pix_y >= 10'd265) && (pix_y <= 10'd270))||
-                      ((pix_x >= 10'd415) && (pix_x <= 10'd445 ) &&
-                      (pix_y >= 10'd250) && (pix_y <= 10'd257))||
-                      ((pix_x >= 10'd446) && (pix_x <= 10'd462 ) &&
+                      (pix_y >= 10'd265) && (pix_y <= 10'd270)) ||
+                     ((pix_x >= 10'd415) && (pix_x <= 10'd445) &&
+                      (pix_y >= 10'd250) && (pix_y <= 10'd257)) ||
+                     ((pix_x >= 10'd446) && (pix_x <= 10'd462) &&
                       (pix_y >= 10'd235) && (pix_y <= 10'd240));
 
-
-  wire blow_hole = ((pix_x >= 10'd294) && (pix_x <= 10'd314 ) &&
-                   (pix_y >= 10'd130) && (pix_y <= 10'd149));
+  wire blow_hole = ((pix_x >= 10'd294) && (pix_x <= 10'd314) &&
+                    (pix_y >= 10'd130) && (pix_y <= 10'd149));
 
   wire hole_l_ring = (((pix_x >= 10'd255) && (pix_x <= 10'd265) && (pix_y >= 10'd202) && (pix_y <= 10'd222)) ||
                       ((pix_x >= 10'd251) && (pix_x <= 10'd269) && (pix_y >= 10'd206) && (pix_y <= 10'd218)));
@@ -342,7 +345,7 @@ module tt_um_vga_ocarina (
   wire hole_x_ring = (((pix_x >= 10'd320) && (pix_x <= 10'd330) && (pix_y >= 10'd240) && (pix_y <= 10'd260)) ||
                       ((pix_x >= 10'd316) && (pix_x <= 10'd334) && (pix_y >= 10'd244) && (pix_y <= 10'd256)));
   wire hole_a_ring = (((pix_x >= 10'd420) && (pix_x <= 10'd430) && (pix_y >= 10'd220) && (pix_y <= 10'd240)) ||
-                      ((pix_x >= 10'd416) && (pix_x <= 10'd434) && (pix_y >= 10'd224) && (pix_y <= 10'd236))); 
+                      ((pix_x >= 10'd416) && (pix_x <= 10'd434) && (pix_y >= 10'd224) && (pix_y <= 10'd236)));
 
   wire hole_l = (pix_x >= 10'd256) && (pix_x <= 10'd264) &&
                 (pix_y >= 10'd208) && (pix_y <= 10'd216);
@@ -352,18 +355,16 @@ module tt_um_vga_ocarina (
                 (pix_y >= 10'd236) && (pix_y <= 10'd244);
   wire hole_x = (pix_x >= 10'd321) && (pix_x <= 10'd329) &&
                 (pix_y >= 10'd246) && (pix_y <= 10'd254);
-  wire hole_a = (pix_x >= 10'd421) && (pix_x <= 10'd429) && 
+  wire hole_a = (pix_x >= 10'd421) && (pix_x <= 10'd429) &&
                 (pix_y >= 10'd226) && (pix_y <= 10'd234);
 
   wire hole_ring_on = hole_l_ring | hole_r_ring | hole_y_ring | hole_x_ring | hole_a_ring;
-
 
   wire mod_up = (pix_x >= 10'd525) && (pix_x <= 10'd534) &&
                 (pix_y >= 10'd165) && (pix_y <= 10'd174);
 
   wire mod_down = (pix_x >= 10'd525) && (pix_x <= 10'd534) &&
                   (pix_y >= 10'd255) && (pix_y <= 10'd264);
-
 
   // Staff area and rows.
   wire staff_x = (pix_x >= 10'd70) && (pix_x <= 10'd570);
@@ -374,36 +375,14 @@ module tt_um_vga_ocarina (
   wire staff_line4 = staff_x && (pix_y >= 10'd390) && (pix_y <= 10'd393);
   wire staff_on = staff_line0 | staff_line1 | staff_line2 | staff_line3 | staff_line4;
 
-
-  // Music key-ish symbol on the left of the staff.
-
   wire staff_key_on =
-      // main vertical stem
       ((pix_x >= 10'd94) && (pix_x <= 10'd99) &&
-       (pix_y >= 10'd306) && (pix_y <= 10'd392)) ||
-      // top curl
-      ((pix_x >= 10'd88) && (pix_x <= 10'd104) &&
-       (pix_y >= 10'd306) && (pix_y <= 10'd311)) ||
-      ((pix_x >= 10'd83) && (pix_x <= 10'd89) &&
-       (pix_y >= 10'd312) && (pix_y <= 10'd324)) ||
-      ((pix_x >= 10'd88) && (pix_x <= 10'd101) &&
-       (pix_y >= 10'd324) && (pix_y <= 10'd330)) ||
-      // middle loop around the staff center
-      ((pix_x >= 10'd78) && (pix_x <= 10'd112) &&
+       (pix_y >= 10'd306) && (pix_y <= 10'd394)) ||
+      ((pix_x >= 10'd84) && (pix_x <= 10'd108) &&
        (pix_y >= 10'd346) && (pix_y <= 10'd352)) ||
-      ((pix_x >= 10'd78) && (pix_x <= 10'd84) &&
-       (pix_y >= 10'd352) && (pix_y <= 10'd366)) ||
-      ((pix_x >= 10'd106) && (pix_x <= 10'd112) &&
-       (pix_y >= 10'd352) && (pix_y <= 10'd366)) ||
-      ((pix_x >= 10'd84) && (pix_x <= 10'd106) &&
-       (pix_y >= 10'd366) && (pix_y <= 10'd372)) ||
-      // center slash / thick musical stroke
-      ((pix_x >= 10'd86) && (pix_x <= 10'd106) &&
-       (pix_y >= 10'd356) && (pix_y <= 10'd361)) ||
-      // lower hook
-      ((pix_x >= 10'd90) && (pix_x <= 10'd100) &&
-       (pix_y >= 10'd372) && (pix_y <= 10'd388)) ||
-      ((pix_x >= 10'd82) && (pix_x <= 10'd96) &&
+      ((pix_x >= 10'd84) && (pix_x <= 10'd90) &&
+       (pix_y >= 10'd352) && (pix_y <= 10'd372)) ||
+      ((pix_x >= 10'd82) && (pix_x <= 10'd100) &&
        (pix_y >= 10'd388) && (pix_y <= 10'd394));
 
   wire row_a = (pix_y >= 10'd305) && (pix_y <= 10'd317);
@@ -411,13 +390,6 @@ module tt_um_vga_ocarina (
   wire row_y = (pix_y >= 10'd345) && (pix_y <= 10'd357);
   wire row_r = (pix_y >= 10'd365) && (pix_y <= 10'd377);
   wire row_l = (pix_y >= 10'd385) && (pix_y <= 10'd397);
-
-  wire row_a_mid = (pix_y >= 10'd308) && (pix_y <= 10'd314);
-  wire row_x_mid = (pix_y >= 10'd328) && (pix_y <= 10'd334);
-  wire row_y_mid = (pix_y >= 10'd348) && (pix_y <= 10'd354);
-  wire row_r_mid = (pix_y >= 10'd368) && (pix_y <= 10'd374);
-  wire row_l_mid = (pix_y >= 10'd388) && (pix_y <= 10'd394);
-
 
   wire slot0_x = (pix_x >= 10'd169) && (pix_x <= 10'd181);
   wire slot1_x = (pix_x >= 10'd219) && (pix_x <= 10'd231);
@@ -464,44 +436,18 @@ module tt_um_vga_ocarina (
   end
 
   wire target_note_on  = (guide_pix != 3'd0) &&
-                         ((row_for_btn(guide_pix, row_a_mid, row_x_mid, row_y_mid, row_r_mid, row_l_mid)) ||
-                          (slot_x_narrow && row_for_btn(guide_pix, row_a, row_x, row_y, row_r, row_l)));
+                         slot_x_narrow &&
+                         row_for_btn(guide_pix, row_a, row_x, row_y, row_r, row_l);
 
   wire history_note_on = (hist_pix != 3'd0) &&
-                         ((row_for_btn(hist_pix, row_a_mid, row_x_mid, row_y_mid, row_r_mid, row_l_mid)) ||
-                          (slot_x_narrow && row_for_btn(hist_pix, row_a, row_x, row_y, row_r, row_l)));
-
-  wire latest_slot0 = (hist_count == 3'd0) || (hist_count == 3'd1);
-  wire latest_slot1 = (hist_count == 3'd2);
-  wire latest_slot2 = (hist_count == 3'd3);
-  wire latest_slot3 = (hist_count == 3'd4);
-  wire latest_slot4 = (hist_count == 3'd5);
-  wire latest_slot5 = (hist_count >= 3'd6);
-
-  wire latest_slot_x = (latest_slot0 && slot0_x) |
-                       (latest_slot1 && slot1_x) |
-                       (latest_slot2 && slot2_x) |
-                       (latest_slot3 && slot3_x) |
-                       (latest_slot4 && slot4_x) |
-                       (latest_slot5 && slot5_x);
-
-  wire current_note_on = note_enable && latest_slot_x &&
-                         ((row_for_btn(note_vis, row_a_mid, row_x_mid, row_y_mid, row_r_mid, row_l_mid)) ||
-                          (slot_x_narrow && row_for_btn(note_vis, row_a, row_x, row_y, row_r, row_l)));
-
-  wire current_slot = latest_slot_x && (pix_y >= 10'd400) && (pix_y <= 10'd405);
-
-  wire song_select_on = (pix_y >= 10'd300) && (pix_y <= 10'd306) &&
-                        (((song_id == 2'd0) && (pix_x >= 10'd78)  && (pix_x <= 10'd84)) ||
-                         ((song_id == 2'd1) && (pix_x >= 10'd90)  && (pix_x <= 10'd96)) ||
-                         ((song_id == 2'd2) && (pix_x >= 10'd102) && (pix_x <= 10'd108)) ||
-                         ((song_id == 2'd3) && (pix_x >= 10'd114) && (pix_x <= 10'd120)));
+                         slot_x_narrow &&
+                         row_for_btn(hist_pix, row_a, row_x, row_y, row_r, row_l);
 
   // ------------------------------------------------------------
   // Colors
   // ------------------------------------------------------------
   localparam [5:0] C_BLACK = 6'b000000;
-  localparam [5:0] C_BG    = 6'b011001; 
+  localparam [5:0] C_BG    = 6'b011001;
   localparam [5:0] C_BODY  = 6'b010111;
   localparam [5:0] C_HOLE  = 6'b000000;
   localparam [5:0] C_GRAY  = 6'b010101;
@@ -509,39 +455,50 @@ module tt_um_vga_ocarina (
   localparam [5:0] C_RED   = 6'b110000;
   localparam [5:0] C_WHITE = 6'b111111;
   localparam [5:0] C_RIM   = 6'b000010;
-  localparam [5:0] C_NOTE   = 6'b111000;
+  localparam [5:0] C_NOTE  = 6'b111000;
 
+  reg [5:0] rgb_next;
   reg [5:0] rgb;
 
   always @(*) begin
-    rgb = C_BLACK;
+    rgb_next = C_BLACK;
 
     if (video_active) begin
-      rgb = C_BG;
+      rgb_next = C_BG;
 
-      if (staff_on)        rgb = C_RED;
-      if (staff_key_on)    rgb = C_NOTE;
-      if (target_note_on)  rgb = C_GRAY;
-      if (history_note_on) rgb = C_NOTE;
-      //if (current_slot)    rgb = C_WHITE;
-      //if (song_select_on)  rgb = C_WHITE;
-      if (current_note_on) rgb = C_GREEN;
+      if (staff_on)        rgb_next = C_RED;
+      if (staff_key_on)    rgb_next = C_NOTE;
+      if (target_note_on)  rgb_next = C_GRAY;
+      if (history_note_on) rgb_next = C_NOTE;
 
-      if (body_outline)   rgb = C_HOLE;
-      if (body_on)        rgb = C_BODY;
-      if (body_shadow)    rgb = C_RIM;
-      if (body_highlight) rgb = C_WHITE;
-      if (blow_hole)      rgb = C_HOLE;
+      if (body_outline)   rgb_next = C_HOLE;
+      if (body_on)        rgb_next = C_BODY;
+      if (body_shadow)    rgb_next = C_RIM;
+      if (body_highlight) rgb_next = C_WHITE;
+      if (blow_hole)      rgb_next = C_HOLE;
 
-      if (hole_ring_on) rgb = C_RIM;
-      if (hole_l) rgb = inp_l ? C_GREEN : C_HOLE;
-      if (hole_r) rgb = inp_r ? C_GREEN : C_HOLE;
-      if (hole_y) rgb = inp_y ? C_GREEN : C_HOLE;
-      if (hole_x) rgb = inp_x ? C_GREEN : C_HOLE;
-      if (hole_a) rgb = inp_a ? C_GREEN : C_HOLE;
+      if (hole_ring_on) rgb_next = C_RIM;
+      if (hole_l) rgb_next = inp_l ? C_GREEN : C_HOLE;
+      if (hole_r) rgb_next = inp_r ? C_GREEN : C_HOLE;
+      if (hole_y) rgb_next = inp_y ? C_GREEN : C_HOLE;
+      if (hole_x) rgb_next = inp_x ? C_GREEN : C_HOLE;
+      if (hole_a) rgb_next = inp_a ? C_GREEN : C_HOLE;
 
-      if (mod_up)    rgb = inp_up    ? C_GREEN : C_GRAY;
-      if (mod_down)  rgb = inp_down  ? C_GREEN : C_GRAY;
+      if (mod_up)   rgb_next = inp_up   ? C_GREEN : C_GRAY;
+      if (mod_down) rgb_next = inp_down ? C_GREEN : C_GRAY;
+    end
+  end
+
+  // Register video output to reduce timing violations.
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      rgb     <= 6'b000000;
+      hsync_r <= 1'b0;
+      vsync_r <= 1'b0;
+    end else begin
+      rgb     <= rgb_next;
+      hsync_r <= hsync;
+      vsync_r <= vsync;
     end
   end
 
