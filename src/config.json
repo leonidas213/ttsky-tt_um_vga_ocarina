@@ -22,6 +22,9 @@
   "//": "Hold slack margin - Increase them in case you are getting hold violations.",
   "PL_RESIZER_HOLD_SLACK_MARGIN": 0.1,
   "GRT_RESIZER_HOLD_SLACK_MARGIN": 0.05,
+   "//": "Setup slack margin - set resizer to ignore the slow corners, but add plenty of margin.",
+  "PL_RESIZER_SETUP_SLACK_MARGIN": 4.0,
+  "GRT_RESIZER_SETUP_SLACK_MARGIN": 3.5,
 
   "//": "RUN_LINTER, LINTER_INCLUDE_PDK_MODELS - Disabling the linter is not recommended!",
   "RUN_LINTER": 1,
